@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Andrea, a question for you</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --night: #0d1030;
+    --deep: #1a1446;
+    --gold: #f3c969;
+    --rose: #ef5d7a;
+    --cream: #fff6e5;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(ellipse at 50% 120%, var(--deep), var(--night) 70%);
+    color: var(--cream);
+    font-family: "Nunito", system-ui, sans-serif;
+    overflow: hidden;
+  }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; }
+  main {
+    position: relative; z-index: 2;
+    min-height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 24px; gap: 36px;
+  }
+  h1 {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-weight: 700;
+    font-size: clamp(2.2rem, 7vw, 4.6rem);
+    line-height: 1.1;
+    max-width: 14em;
+    text-shadow: 0 0 30px rgba(243, 201, 105, .35);
+  }
+  h1 em { font-style: italic; color: var(--gold); }
+  .buttons { display: flex; gap: 18px; align-items: center; justify-content: center; flex-wrap: wrap; min-height: 64px; }
+  button {
+    font: 800 1.15rem "Nunito", system-ui, sans-serif;
+    border: 0; border-radius: 999px; cursor: pointer;
+    padding: 16px 38px;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  button:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
+  #yes {
+    background: linear-gradient(135deg, var(--rose), #ff8a5c);
+    color: #fff;
+    box-shadow: 0 0 0 0 rgba(239, 93, 122, .6);
+    animation: pulse 2s infinite;
+  }
+  #yes:hover { transform: scale(1.08); }
+  #no { background: rgba(255,255,255,.12); color: var(--cream); }
+  @keyframes pulse {
+    70% { box-shadow: 0 0 0 22px rgba(239, 93, 122, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 93, 122, 0); }
+  }
+  #answer { display: none; flex-direction: column; gap: 18px; align-items: center; }
+  #answer h2 {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(2.4rem, 8vw, 5.4rem);
+    color: var(--gold);
+    text-shadow: 0 0 40px rgba(243, 201, 105, .5);
+  }
+  #answer p { font-size: clamp(1.1rem, 3vw, 1.6rem); max-width: 22em; line-height: 1.5; }
+  body.yes #question { display: none; }
+  body.yes #answer { display: flex; animation: pop .8s cubic-bezier(.2,1.4,.4,1); }
+  @keyframes pop { from { transform: scale(.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  #hint { margin-top: 22px; font-size: clamp(1.05rem, 3vw, 1.35rem); line-height: 1.5; }
+  #hint small { opacity: .7; font-size: .8em; }
+  #game {
+    position: relative; margin: 18px auto 0;
+    width: min(92vw, 520px); height: min(48vh, 400px);
+    border-radius: 24px; overflow: hidden; touch-action: none; cursor: none;
+    background: rgba(255,255,255,.06);
+    box-shadow: inset 0 0 0 2px rgba(243,201,105,.35), 0 0 40px rgba(239,93,122,.2);
+  }
+  #game canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #score { margin-top: 14px; font: 800 1.4rem "Nunito", system-ui, sans-serif; color: var(--gold); }
+  /* Iran + Hungary symbols, shown only after "Yes" */
+  #symbols { position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 1.5s ease .6s; }
+  body.yes #symbols { opacity: 1; }
+  .heart-mid { position: absolute; top: 5vh; left: 50%; transform: translateX(-50%); font-size: clamp(1.6rem, 5vw, 3rem); animation: beat 1.2s infinite; }
+  @keyframes beat { 0%,100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.25); } }
+  .skyline { position: absolute; bottom: 0; fill: var(--gold); opacity: .2; }
+  .skyline.azadi { left: 3vw; height: clamp(110px, 28vh, 260px); }
+  .skyline.parl { right: 3vw; height: clamp(90px, 22vh, 210px); }
+  .float { position: absolute; bottom: -60px; font-size: clamp(1.4rem, 4vw, 2.4rem); opacity: .55; animation: rise 14s linear infinite; }
+  .float svg { width: 1.4em; height: 1.4em; display: block; }
+  @keyframes rise { to { transform: translateY(-115vh) rotate(25deg); } }
+  @media (prefers-reduced-motion: reduce) { #yes, .heart-mid, .float { animation: none; } .float { bottom: 20%; } }
+</style>
+</head>
+<body>
+<canvas id="fx"></canvas>
+
+<div id="symbols" aria-hidden="true">
+  <div class="heart-mid">💞</div>
+
+  <!-- Azadi Tower (Tehran) -->
+  <svg class="skyline azadi" viewBox="0 0 120 140">
+    <path d="M20 140 L20 70 Q20 55 40 50 L50 25 L60 3 L70 25 L80 50 Q100 55 100 70 L100 140 L82 140 L82 90 Q82 70 60 62 Q38 70 38 90 L38 140 Z"/>
+  </svg>
+  <!-- Hungarian Parliament (Budapest) -->
+  <svg class="skyline parl" viewBox="0 0 240 120">
+    <path d="M0 120 V82 H240 V120 Z"/>
+    <path d="M88 82 V52 Q120 8 152 52 V82 Z"/>
+    <path d="M118 12 V0 H122 V12 Z"/>
+    <path d="M24 82 V56 L33 34 L42 56 V82 Z"/>
+    <path d="M198 82 V56 L207 34 L216 56 V82 Z"/>
+    <path d="M62 82 V62 L68 46 L74 62 V82 Z"/>
+    <path d="M166 82 V62 L172 46 L178 62 V82 Z"/>
+    <path d="M0 82 V68 L8 56 L16 68 V82 Z"/>
+    <path d="M224 82 V68 L232 56 L240 68 V82 Z"/>
+  </svg>
+
+  <!-- floating symbols: Persian rose, pomegranate, paprika, Matyó flower, Tokaji wine, dove -->
+  <span class="float" style="left:8%;animation-delay:0s">🌹</span>
+  <span class="float" style="left:18%;animation-delay:-5s">🌶️</span>
+  <span class="float" style="left:28%;animation-delay:-9s">
+    <svg viewBox="0 0 40 40"><circle cx="20" cy="23" r="13" fill="#c0283f"/><path d="M13 12 L16 7 L20 11 L24 7 L27 12 Z" fill="#c0283f"/><circle cx="20" cy="24" r="2.5" fill="#fff" opacity=".6"/></svg>
+  </span>
+  <span class="float" style="left:40%;animation-delay:-2s">🕊️</span>
+  <span class="float" style="left:52%;animation-delay:-11s">
+    <svg viewBox="0 0 40 40"><g fill="#ef5d7a"><ellipse cx="20" cy="9" rx="5" ry="8"/><ellipse cx="20" cy="31" rx="5" ry="8"/><ellipse cx="9" cy="20" rx="8" ry="5"/><ellipse cx="31" cy="20" rx="8" ry="5"/></g><circle cx="20" cy="20" r="4.5" fill="#f3c969"/></svg>
+  </span>
+  <span class="float" style="left:64%;animation-delay:-7s">🍷</span>
+  <span class="float" style="left:74%;animation-delay:-3s">🌹</span>
+  <span class="float" style="left:84%;animation-delay:-12s">🌶️</span>
+  <span class="float" style="left:92%;animation-delay:-6s">
+    <svg viewBox="0 0 40 40"><circle cx="20" cy="23" r="13" fill="#c0283f"/><path d="M13 12 L16 7 L20 11 L24 7 L27 12 Z" fill="#c0283f"/><circle cx="20" cy="24" r="2.5" fill="#fff" opacity=".6"/></svg>
+  </span>
+</div>
+
+<main>
+  <section id="question">
+    <h1>Andrea, will you <em>marry</em> Amir?</h1>
+    <p id="hint">Catch 10 hearts to say yes 💍<br><small>Tap or move to start. Avoid the paprika! 🌶️</small></p>
+    <div id="game"><canvas id="gc"></canvas></div>
+    <div id="score" aria-live="polite">0 / 10</div>
+  </section>
+
+  <section id="answer" aria-live="polite">
+    <h2>Congratulations!</h2>
+    <p>Happy union to you both. 💞<br>
+       Wishing you a lifetime of love, laughter and happiness together.</p>
+  </section>
+</main>
+
+<script>
+const canvas = document.getElementById('fx');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize() {
+  const d = window.devicePixelRatio || 1;
+  W = canvas.width = innerWidth * d;
+  H = canvas.height = innerHeight * d;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(d, d);
+  W = innerWidth; H = innerHeight;
+}
+resize(); addEventListener('resize', resize);
+
+const colors = ['#f3c969', '#ef5d7a', '#ff8a5c', '#7de2d1', '#a78bfa', '#ffffff'];
+let rockets = [], sparks = [], stars = [];
+for (let i = 0; i < 70; i++) stars.push({ x: Math.random(), y: Math.random(), r: Math.random() * 1.4 + .3, t: Math.random() * 6 });
+
+function launch() {
+  rockets.push({
+    x: Math.random() * W * .8 + W * .1,
+    y: H + 10,
+    vx: (Math.random() - .5) * 1.5,
+    vy: -(Math.random() * 4 + 9),
+    target: Math.random() * H * .4 + H * .08,
+    color: colors[Math.floor(Math.random() * colors.length)]
+  });
+}
+
+function explode(x, y, color) {
+  const n = 90;
+  const mix = Math.random() < .4;
+  for (let i = 0; i < n; i++) {
+    const a = (Math.PI * 2 * i) / n;
+    const s = Math.random() * 3.5 + 2.5;
+    sparks.push({
+      x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      life: 1, decay: Math.random() * .012 + .008,
+      color: mix ? colors[Math.floor(Math.random() * colors.length)] : color
+    });
+  }
+}
+
+let party = false, last = 0;
+function frame(t) {
+  ctx.fillStyle = 'rgba(13, 16, 48, 0.22)';
+  ctx.fillRect(0, 0, W, H);
+
+  stars.forEach(s => {
+    ctx.globalAlpha = .4 + Math.sin(t / 700 + s.t) * .3;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(s.x * W, s.y * H, s.r, 0, 7); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  if (party && t - last > 380) { launch(); if (Math.random() < .4) launch(); last = t; }
+
+  rockets = rockets.filter(r => {
+    r.x += r.vx; r.y += r.vy; r.vy += .06;
+    ctx.fillStyle = r.color;
+    ctx.beginPath(); ctx.arc(r.x, r.y, 2.5, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,220,150,.35)';
+    ctx.beginPath(); ctx.arc(r.x - r.vx * 3, r.y - r.vy * 3, 2, 0, 7); ctx.fill();
+    if (r.y <= r.target || r.vy >= -1) { explode(r.x, r.y, r.color); return false; }
+    return true;
+  });
+
+  sparks = sparks.filter(p => {
+    p.x += p.vx; p.y += p.vy; p.vx *= .98; p.vy = p.vy * .98 + .05; p.life -= p.decay;
+    ctx.globalAlpha = Math.max(p.life, 0);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, 7); ctx.fill();
+    ctx.globalAlpha = 1;
+    return p.life > 0;
+  });
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---------- The game: catch 10 hearts ----------
+const GOAL = 10;
+const gc = document.getElementById('gc'), g = gc.getContext('2d');
+const game = document.getElementById('game');
+const scoreEl = document.getElementById('score');
+const EMOJI = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+let gw = 0, gh = 0, px = 0, score = 0, started = false, won = false;
+let items = [], spawnIn = 0, lastG = 0, shake = 0;
+
+function sizeGame() {
+  const d = window.devicePixelRatio || 1;
+  gw = game.clientWidth; gh = game.clientHeight;
+  gc.width = gw * d; gc.height = gh * d;
+  g.setTransform(d, 0, 0, d, 0, 0);
+  if (!px) px = gw / 2;
+}
+sizeGame(); addEventListener('resize', sizeGame);
+
+function movePlayer(clientX) {
+  const r = game.getBoundingClientRect();
+  px = Math.max(30, Math.min(gw - 30, clientX - r.left));
+  started = true;
+}
+game.addEventListener('pointerdown', e => movePlayer(e.clientX));
+game.addEventListener('pointermove', e => movePlayer(e.clientX));
+addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft') { px = Math.max(30, px - 30); started = true; }
+  if (e.key === 'ArrowRight') { px = Math.min(gw - 30, px + 30); started = true; }
+});
+
+function spawn() {
+  const r = Math.random();
+  const type = r < .6 ? 'heart' : r < .78 ? 'ring' : 'pepper';
+  items.push({
+    type, x: Math.random() * (gw - 60) + 30, y: -30,
+    v: gh * (0.4 + Math.random() * 0.3)
+  });
+}
+
+function setScore(v) {
+  score = Math.max(0, v);
+  scoreEl.textContent = Math.min(score, GOAL) + ' / ' + GOAL;
+}
+
+function win() {
+  won = true;
+  scoreEl.textContent = 'She said yes! 💍';
+  setTimeout(() => {
+    document.body.classList.add('yes');
+    party = true;
+    for (let i = 0; i < 6; i++) setTimeout(launch, i * 150);
+  }, 700);
+}
+
+const ICON = { heart: '💖', ring: '💍', pepper: '🌶️' };
+
+function gameFrame(t) {
+  const dt = Math.min((t - lastG) / 1000, .05); lastG = t;
+  g.clearRect(0, 0, gw, gh);
+
+  if (started && !won) {
+    spawnIn -= dt;
+    if (spawnIn <= 0) { spawn(); spawnIn = .55 + Math.random() * .35; }
+  }
+
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  items = items.filter(it => {
+    if (started) it.y += it.v * dt;
+    g.font = '32px ' + EMOJI;
+    g.fillText(ICON[it.type], it.x, it.y);
+    if (!won && it.y > gh - 54 && it.y < gh - 10 && Math.abs(it.x - px) < 40) {
+      if (it.type === 'heart') setScore(score + 1);
+      else if (it.type === 'ring') setScore(score + 2);
+      else { setScore(score - 1); shake = .3; }
+      if (score >= GOAL) win();
+      return false;
+    }
+    return it.y < gh + 40;
+  });
+
+  // basket
+  shake = Math.max(0, shake - dt);
+  const sx = shake ? (Math.random() - .5) * 8 : 0;
+  g.font = '46px ' + EMOJI;
+  g.fillText('🧺', px + sx, gh - 28);
+
+  requestAnimationFrame(gameFrame);
+}
+requestAnimationFrame(gameFrame);
+</script>
+</body>
+</html>
